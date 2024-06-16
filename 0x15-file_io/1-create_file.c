@@ -1,42 +1,92 @@
 #include "main.h"
 
 /**
-  * append_text_to_file - Append a text to the file
-  * @filename: File name of the file
-  * @text_content: Text to append to the file
+  * init_buffer - Allocating bytes for buffer
+  * @docs: Argument for the filename
   *
-  * Return: -1 if filename if NULL, otherwise
+  * Return: A pointer to the newly allocated buffer
   */
 
-int append_text_to_file(const char *filename, char *text_content)
+char *init_buffer(char *docs)
 {
-	int fd, written, len = 0;
+	char *buf;
 
-	if (filename == NULL)
-		return (-1);
+	buf = malloc(sizeof(char) * 1024);
 
-	if (text_content != NULL)
+	if (buf == NULL)
 	{
-		while (text_content[len])
-			len++;
+		dprintf(STDERR_FILENO, "Error: Can't write to %s\n", docs);
+		exit(99);
 	}
 
-	fd = open(filename, O_WRONLY | O_APPEND);
+	return (buf);
+}
 
-	if (fd == -1)
-		return (-1);
+/**
+  * file_close - Closes the file
+  * @file_dp: File descriptor
+  */
 
-	if (text_content != NULL)
+void file_close(int file_dp)
+{
+	int a;
+
+	a = close(file_dp);
+
+	if (a == -1)
 	{
-		written = write(fd, text_content, len);
+		dprintf(STDERR_FILENO, "Error: Can't close file descriptor %d\n", file_dp);
+		exit(100);
+	}
+}
 
-		if (written == -1)
+/**
+  * main - Emulates the cp command
+  * @argc: The number of arguments
+  * @argv: An array of pointers to the arguments.
+  *
+  * Return: 0 on success.
+  */
+
+int main(int argc, char *argv[])
+{
+	int from_file, to_file, to_read, to_write;
+	char *buf;
+
+	if (argc != 3)
+	{
+		dprintf(STDERR_FILENO, "Usage: cp file_from file_to\n");
+		exit(97);
+	}
+
+	buf = init_buffer(argv[2]);
+	from_file = open(argv[1], O_RDONLY);
+	to_read = read(from_file, buf, 1024);
+	to_file = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0664);
+
+	do {
+		if (from_file == -1 || to_read == -1)
 		{
-			close(fd);
-			return (-1);
+			dprintf(STDERR_FILENO, "Error: Can't read from file %s\n", argv[1]);
+			free(buf);
+			exit(98);
 		}
-	}
 
-	close(fd);
-	return (1);
+		to_write = write(to_file, buf, to_read);
+		if (to_file == -1 || to_write == -1)
+		{
+			dprintf(STDERR_FILENO, "Error: Can't write to %s\n", argv[2]);
+			free(buf);
+			exit(99);
+		}
+
+		to_read = read(from_file, buf, 1024);
+		to_file = open(argv[2], O_WRONLY | O_APPEND);
+	} while (to_read > 0);
+
+	free(buf);
+	file_close(from_file);
+	file_close(to_file);
+
+	return (0);
 }
