@@ -1,72 +1,92 @@
-include "main.h"
-#include <stdio.h>
+#include "main.h"
 
 /**
- * error_file - checks if files can be opened.
- * @file_from: file_from.
- * @file_to: file_to.
- * @argv: arguments vector.
- * Return: no return.
- */
-void error_file(int file_from, int file_to, char *argv[])
+  * init_buffer - Allocating bytes for buffer
+  * @docs: Argument for the filename
+  *
+  * Return: A pointer to the newly allocated buffer
+  */
+
+char *init_buffer(char *docs)
 {
-	if (file_from == -1)
+	char *buf;
+
+	buf = malloc(sizeof(char) * 1024);
+
+	if (buf == NULL)
 	{
-		dprintf(STDERR_FILENO, "Error: Can't read from file %s\n", argv[1]);
-		exit(98);
-	}
-	if (file_to == -1)
-	{
-		dprintf(STDERR_FILENO, "Error: Can't write to %s\n", argv[2]);
+		dprintf(STDERR_FILENO, "Error: Can't write to %s\n", docs);
 		exit(99);
+	}
+
+	return (buf);
+}
+
+/**
+  * file_close - Closes the file
+  * @file_dp: File descriptor
+  */
+
+void file_close(int file_dp)
+{
+	int a;
+
+	a = close(file_dp);
+
+	if (a == -1)
+	{
+		dprintf(STDERR_FILENO, "Error: Can't close file descriptor %d\n", file_dp);
+		exit(100);
 	}
 }
 
 /**
- * main - check the code for Holberton School students.
- * @argc: number of arguments.
- * @argv: arguments vector.
- * Return: Always 0.
- */
+  * main - Emulates the cp command
+  * @argc: The number of arguments
+  * @argv: An array of pointers to the arguments.
+  *
+  * Return: 0 on success.
+  */
+
 int main(int argc, char *argv[])
 {
-	int file_from, file_to, err_close;
-	ssize_t nchars, nwr;
-	char buf[1024];
+	int from_file, to_file, to_read, to_write;
+	char *buf;
 
 	if (argc != 3)
 	{
-		dprintf(STDERR_FILENO, "%s\n", "Usage: cp file_from file_to");
+		dprintf(STDERR_FILENO, "Usage: cp file_from file_to\n");
 		exit(97);
 	}
 
-	file_from = open(argv[1], O_RDONLY);
-	file_to = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC | O_APPEND, 0664);
-	error_file(file_from, file_to, argv);
+	buf = init_buffer(argv[2]);
+	from_file = open(argv[1], O_RDONLY);
+	to_read = read(from_file, buf, 1024);
+	to_file = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC, 0664);
 
-	nchars = 1024;
-	while (nchars == 1024)
-	{
-		nchars = read(file_from, buf, 1024);
-		if (nchars == -1)
-			error_file(-1, 0, argv);
-		nwr = write(file_to, buf, nchars);
-		if (nwr == -1)
-			error_file(0, -1, argv);
-	}
+	do {
+		if (from_file == -1 || to_read == -1)
+		{
+			dprintf(STDERR_FILENO, "Error: Can't read from file %s\n", argv[1]);
+			free(buf);
+			exit(98);
+		}
 
-	err_close = close(file_from);
-	if (err_close == -1)
-	{
-		dprintf(STDERR_FILENO, "Error: Can't close fd %d\n", file_from);
-		exit(100);
-	}
+		to_write = write(to_file, buf, to_read);
+		if (to_file == -1 || to_write == -1)
+		{
+			dprintf(STDERR_FILENO, "Error: Can't write to %s\n", argv[2]);
+			free(buf);
+			exit(99);
+		}
 
-	err_close = close(file_to);
-	if (err_close == -1)
-	{
-		dprintf(STDERR_FILENO, "Error: Can't close fd %d\n", file_from);
-		exit(100);
-	}
+		to_read = read(from_file, buf, 1024);
+		to_file = open(argv[2], O_WRONLY | O_APPEND);
+	} while (to_read > 0);
+
+	free(buf);
+	file_close(from_file);
+	file_close(to_file);
+
 	return (0);
 }
